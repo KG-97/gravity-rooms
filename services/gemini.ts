@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, Type, LiveServerMessage } from "@google/genai";
+import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 
 // Helper to ensure we have a user-selected key which is required for advanced/preview models
 const ensureUserKey = async (force = false) => {
@@ -12,11 +12,11 @@ const ensureUserKey = async (force = false) => {
 
 // Get client with dynamic key access
 export const getAiClient = async (requireUserKey = false) => {
-  let key = process.env.API_KEY || '';
+  let key = import.meta.env.VITE_GEMINI_API_KEY || '';
   if (requireUserKey && window.aistudio) {
     const hasKey = await window.aistudio.hasSelectedApiKey();
     if (hasKey) {
-        key = process.env.API_KEY || '';
+        key = import.meta.env.VITE_GEMINI_API_KEY || '';
     }
   }
   return new GoogleGenAI({ apiKey: key });

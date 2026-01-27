@@ -25,6 +25,10 @@ export const useAudiobookPlayer = (chapter: Chapter) => {
   }, []);
 
   useEffect(() => {
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current = null;
+    }
     setAudioBuffer(null);
     setAudioBase64(null);
     setIsPlaying(false);

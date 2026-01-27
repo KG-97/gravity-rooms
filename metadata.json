@@ -1,0 +1,7 @@
+{
+  "name": "Gravity Rooms: The Gates Archive",
+  "description": "An interactive audiobook and forensic archive of the Gates Case File (2024–2025). Features AI-narrated chapters, forensic image reconstruction, and a system-log conversational interface.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

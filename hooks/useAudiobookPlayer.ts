@@ -31,8 +31,10 @@ export const useAudiobookPlayer = (chapter: Chapter) => {
     }
     setAudioBuffer(null);
     setAudioBase64(null);
+    setIsLoading(false);
     setIsPlaying(false);
     setError(null);
+    startTimeRef.current = 0;
     pausedAtRef.current = 0;
   }, [chapter.id]);
 

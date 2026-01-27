@@ -1,25 +1,9 @@
-import React, { useState } from 'react';
-import { generateImage } from '../services/gemini';
+import React from 'react';
 import { Loader2, Image as ImageIcon, Zap } from 'lucide-react';
+import { useImageGenerator } from '../hooks/useImageGenerator';
 
 const ImageGenerator: React.FC = () => {
-  const [prompt, setPrompt] = useState("A brutalist concrete room with a single heavy lifting rack, dramatic lighting, high contrast, monochrome");
-  const [size, setSize] = useState<'1K' | '2K' | '4K'>('1K');
-  const [isLoading, setIsLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-  const handleGenerate = async () => {
-    setIsLoading(true);
-    try {
-      const url = await generateImage(prompt, size);
-      setImageUrl(url);
-    } catch (err) {
-      console.error(err);
-      alert("Visual reconstruction failed. Ensure API access.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { prompt, setPrompt, size, setSize, isLoading, imageUrl, error, handleGenerate } = useImageGenerator();
 
   return (
     <div className="flex flex-col h-full p-6 space-y-6">
@@ -64,11 +48,36 @@ const ImageGenerator: React.FC = () => {
             <button
                 onClick={handleGenerate}
                 disabled={isLoading}
-                className="w-full py-3 bg-white text-black font-mono font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 disabled:opacity-50"
+                className="w-full py-3 bg-white text-black font-mono font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
             >
                 {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <Zap className="w-4 h-4" />}
                 INITIATE RENDER
             </button>
+            {isLoading && (
+                <div className="text-[10px] font-mono uppercase text-purple-300">
+                    COMPILING GEOMETRY...
+                </div>
+            )}
+            {imageUrl && (
+                <a
+                    href={imageUrl}
+                    download="gravity-room.png"
+                    className="block w-full py-2 text-center font-mono text-xs border border-neutral-800 text-neutral-300 hover:border-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                >
+                    DOWNLOAD IMAGE
+                </a>
+            )}
+            {error && (
+                <div className="rounded border border-red-900 bg-red-950/40 p-3 text-xs font-mono text-red-200">
+                    <div>{error}</div>
+                    <button
+                        onClick={handleGenerate}
+                        className="mt-2 rounded border border-red-700 px-2 py-1 text-[10px] text-red-200 hover:bg-red-900/40"
+                    >
+                        RETRY RENDER
+                    </button>
+                </div>
+            )}
         </div>
 
         {/* Display */}

@@ -12,11 +12,11 @@ const ensureUserKey = async (force = false) => {
 
 // Get client with dynamic key access
 export const getAiClient = async (requireUserKey = false) => {
-  let key = process.env.API_KEY || '';
+  let key = import.meta.env.VITE_GEMINI_API_KEY || '';
   if (requireUserKey && window.aistudio) {
     const hasKey = await window.aistudio.hasSelectedApiKey();
     if (hasKey) {
-        key = process.env.API_KEY || '';
+        key = import.meta.env.VITE_GEMINI_API_KEY || '';
     }
   }
   return new GoogleGenAI({ apiKey: key });

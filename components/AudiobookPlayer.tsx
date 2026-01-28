@@ -3,11 +3,6 @@ import { Chapter } from '../types';
 import { Play, Pause, RefreshCw, Loader2, Download } from 'lucide-react';
 import { useAudiobookPlayer } from '../hooks/useAudiobookPlayer';
 import { decodeBase64 } from '../utils/audio';
-
-interface Props {
-  chapter: Chapter;
-}
-
 const AudiobookPlayer: React.FC<Props> = ({ chapter }) => {
   const { isPlaying, isLoading, audioBuffer, audioBase64, error, handleGenerate, togglePlay } = useAudiobookPlayer(chapter);
 

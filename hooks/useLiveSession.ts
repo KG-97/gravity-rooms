@@ -1,94 +1,75 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LiveServerMessage, Session } from '@google/genai';
+import { LiveServerMessage } from '@google/genai';
 import { connectLiveSession } from '../services/gemini';
-import { pcmToGeminiBlob } from '../utils/audio';
-
-const BAR_COUNT = 12;
-const DEFAULT_LEVELS = Array.from({ length: BAR_COUNT }, () => 8);
+import { decodeAudioData, decodeBase64, pcmToGeminiBlob } from '../utils/audio';
 
 export const useLiveSession = () => {
-  const [audioLevels, setAudioLevels] = useState<number[]>(DEFAULT_LEVELS);
   const [isConnected, setIsConnected] = useState(false);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [audioLevels, setAudioLevels] = useState<number[]>([10, 10, 10, 10, 10]);
 
-  const sessionRef = useRef<Session | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const inputContextRef = useRef<AudioContext | null>(null);
+  const outputContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef<number | null>(null);
 
-  const stopVisualization = useCallback(() => {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+  const nextStartTimeRef = useRef<number>(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const sessionPromiseRef = useRef<Promise<any> | null>(null);
+
+  const cleanup = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
-  }, []);
 
-  const startVisualization = useCallback(() => {
-    const analyser = analyserRef.current;
-    if (!analyser) return;
+    inputContextRef.current?.close();
+    outputContextRef.current?.close();
 
-    const data = new Uint8Array(analyser.frequencyBinCount);
-
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
-      const bucketSize = Math.max(1, Math.floor(data.length / BAR_COUNT));
-      const levels = Array.from({ length: BAR_COUNT }, (_, index) => {
-        const start = index * bucketSize;
-        const slice = data.slice(start, start + bucketSize);
-        const avg = slice.reduce((sum, value) => sum + value, 0) / slice.length || 0;
-        return Math.max(10, Math.round((avg / 255) * 100));
-      });
-      setAudioLevels(levels);
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    tick();
-  }, []);
-
-  const resetSessionState = useCallback(() => {
-    stopVisualization();
-    setIsConnected(false);
-    setIsSessionActive(false);
-    setAudioLevels(DEFAULT_LEVELS);
-  }, [stopVisualization]);
-
-  const cleanupAudio = useCallback(() => {
-    processorRef.current?.disconnect();
-    processorRef.current = null;
-    sourceRef.current?.disconnect();
-    sourceRef.current = null;
-    analyserRef.current?.disconnect();
-    analyserRef.current = null;
-
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach(track => track.stop());
     streamRef.current = null;
 
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
+    sourcesRef.current.forEach(s => s.stop());
+    sourcesRef.current.clear();
+
+    if (sessionPromiseRef.current) {
+      sessionPromiseRef.current.then(session => session.close());
     }
+
+    setIsConnected(false);
+    setAudioLevels([10, 10, 10, 10, 10]);
   }, []);
 
-  const stopSession = useCallback(() => {
-    sessionRef.current?.close();
-    sessionRef.current = null;
-    cleanupAudio();
-    resetSessionState();
-  }, [cleanupAudio, resetSessionState]);
+  useEffect(() => cleanup, [cleanup]);
 
-  const handleServerMessage = useCallback((message: LiveServerMessage) => {
-    if (message?.setupComplete) {
-      setIsConnected(true);
+  const visualize = useCallback(() => {
+    if (!analyserRef.current) return;
+
+    const bufferLength = analyserRef.current.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyserRef.current.getByteFrequencyData(dataArray);
+
+    const bars = 5;
+    const step = Math.floor(bufferLength / bars);
+    const newLevels: number[] = [];
+
+    for (let i = 0; i < bars; i++) {
+      let sum = 0;
+      for (let j = 0; j < step; j++) {
+        sum += dataArray[i * step + j];
+      }
+      const avg = sum / step;
+      const val = Math.max(10, (avg / 255) * 100);
+      newLevels.push(val);
     }
+
+    setAudioLevels(newLevels);
+    animationFrameRef.current = requestAnimationFrame(visualize);
   }, []);
 
   const startSession = useCallback(async () => {
-    if (isSessionActive) return;
-
     setError(null);
     setIsSessionActive(true);
 
@@ -96,60 +77,86 @@ export const useLiveSession = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        sampleRate: 16000,
-      });
-      audioContextRef.current = audioContext;
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-      }
+      inputContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      outputContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
 
-      const source = audioContext.createMediaStreamSource(stream);
-      sourceRef.current = source;
-
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512;
+      const inputSource = inputContextRef.current.createMediaStreamSource(stream);
+      const analyser = inputContextRef.current.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.5;
+      inputSource.connect(analyser);
       analyserRef.current = analyser;
+      visualize();
 
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      processorRef.current = processor;
+      const processor = inputContextRef.current.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        const pcmBlob = pcmToGeminiBlob(inputData);
 
-      const zeroGain = audioContext.createGain();
-      zeroGain.gain.value = 0;
-
-      source.connect(analyser);
-      analyser.connect(processor);
-      processor.connect(zeroGain);
-      zeroGain.connect(audioContext.destination);
-
-      const session = await connectLiveSession({
-        onopen: () => setIsConnected(true),
-        onmessage: handleServerMessage,
-        onerror: (event) => {
-          console.error('Live session error', event);
-          setError('LIVE SESSION ERROR. CHECK CONNECTION.');
-        },
-        onclose: () => setIsConnected(false),
-      });
-      sessionRef.current = session;
-
-      processor.onaudioprocess = (event) => {
-        if (!sessionRef.current) return;
-        const input = event.inputBuffer.getChannelData(0);
-        const audioChunk = new Float32Array(input.length);
-        audioChunk.set(input);
-        sessionRef.current.sendRealtimeInput({ media: pcmToGeminiBlob(audioChunk) });
+        if (sessionPromiseRef.current) {
+          sessionPromiseRef.current.then(session => {
+            session.sendRealtimeInput({ media: pcmBlob });
+          });
+        }
       };
 
-      startVisualization();
-    } catch (err) {
-      console.error('Failed to start live session', err);
-      setError('MIC ACCESS DENIED. UNABLE TO START.');
-      stopSession();
-    }
-  }, [handleServerMessage, isSessionActive, startVisualization, stopSession]);
+      inputSource.connect(processor);
+      processor.connect(inputContextRef.current.destination);
 
-  useEffect(() => () => stopSession(), [stopSession]);
+      sessionPromiseRef.current = connectLiveSession({
+        onopen: () => {
+          setIsConnected(true);
+          console.log('Live Session Connected');
+        },
+        onmessage: async (msg: LiveServerMessage) => {
+          const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+          if (audioData && outputContextRef.current) {
+            const bytes = decodeBase64(audioData);
+            const buffer = await decodeAudioData(bytes, outputContextRef.current, 24000, 1);
+
+            const ctx = outputContextRef.current;
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+
+            const currentTime = ctx.currentTime;
+            const startTime = Math.max(nextStartTimeRef.current, currentTime);
+            source.start(startTime);
+
+            nextStartTimeRef.current = startTime + buffer.duration;
+
+            source.onended = () => sourcesRef.current.delete(source);
+            sourcesRef.current.add(source);
+          }
+
+          if (msg.serverContent?.interrupted) {
+            sourcesRef.current.forEach(s => s.stop());
+            sourcesRef.current.clear();
+            nextStartTimeRef.current = 0;
+          }
+        },
+        onclose: () => {
+          console.log('Live Session Closed');
+          setIsConnected(false);
+        },
+        onerror: (e) => {
+          console.error('Live Session Error', e);
+          setError('Connection Interrupted');
+          cleanup();
+          setIsSessionActive(false);
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      setError('Failed to initialize audio systems');
+      setIsSessionActive(false);
+    }
+  }, [cleanup, visualize]);
+
+  const stopSession = useCallback(() => {
+    cleanup();
+    setIsSessionActive(false);
+  }, [cleanup]);
 
   return {
     audioLevels,

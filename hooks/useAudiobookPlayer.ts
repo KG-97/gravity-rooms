@@ -17,9 +17,26 @@ export const useAudiobookPlayer = (chapter: Chapter) => {
   useEffect(() => {
     audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
     return () => {
+      if (sourceNodeRef.current) {
+        sourceNodeRef.current.stop();
+      }
       audioContextRef.current?.close();
     };
   }, []);
+
+  useEffect(() => {
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current = null;
+    }
+    setAudioBuffer(null);
+    setAudioBase64(null);
+    setIsLoading(false);
+    setIsPlaying(false);
+    setError(null);
+    startTimeRef.current = 0;
+    pausedAtRef.current = 0;
+  }, [chapter.id]);
 
   const playAudio = useCallback(async (buffer: AudioBuffer, startOffset: number) => {
     if (!audioContextRef.current) return;

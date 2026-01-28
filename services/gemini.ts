@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, Type, LiveServerMessage } from "@google/genai";
+import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
 
 // Helper to ensure we have a user-selected key which is required for advanced/preview models
 const ensureUserKey = async (force = false) => {

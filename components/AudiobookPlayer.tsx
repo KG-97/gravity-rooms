@@ -14,6 +14,7 @@ const AudiobookPlayer: React.FC<Props> = ({ chapter, totalWordCount, goalWordCou
   const { isPlaying, isLoading, audioBuffer, audioBase64, error, handleGenerate, togglePlay } = useAudiobookPlayer(chapter);
   const chapterWordCount = countWords(chapter.content);
   const progressPercent = Math.min(100, Math.round((totalWordCount / goalWordCount) * 100));
+  const remainingWords = Math.max(0, goalWordCount - totalWordCount);
 
   const handleDownload = () => {
     if (!audioBase64) return;
@@ -38,6 +39,13 @@ const AudiobookPlayer: React.FC<Props> = ({ chapter, totalWordCount, goalWordCou
           <span>Chapter words: {chapterWordCount.toLocaleString()}</span>
           <span>Total: {totalWordCount.toLocaleString()} / {goalWordCount.toLocaleString()}</span>
           <span>Progress: {progressPercent}%</span>
+          <span>Remaining: {remainingWords.toLocaleString()}</span>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full border border-neutral-800 bg-neutral-950">
+          <div
+            className="h-full bg-emerald-500/80 transition-all"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
         <h2 className="text-2xl font-bold text-white mb-4 font-mono">{chapter.title}</h2>
         

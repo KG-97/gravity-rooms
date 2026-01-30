@@ -26,7 +26,12 @@ const SystemChat: React.FC = () => {
             <span className="font-mono text-sm font-bold text-white tracking-wider">SYSTEM_LOG_V1.0</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div
+            className="flex-1 overflow-y-auto p-4 space-y-6"
+            role="log"
+            aria-live="polite"
+            aria-busy={isTyping}
+        >
             {chatHistory.map((msg, idx) => (
                 <div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                     <div className={`max-w-[85%] rounded p-3 font-mono text-sm ${

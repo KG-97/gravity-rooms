@@ -4,6 +4,8 @@ import { useImageGenerator } from '../hooks/useImageGenerator';
 
 const ImageGenerator: React.FC = () => {
   const { prompt, setPrompt, size, setSize, isLoading, imageUrl, error, handleGenerate } = useImageGenerator();
+  const trimmedPromptLength = prompt.trim().length;
+  const isPromptEmpty = trimmedPromptLength === 0;
 
   return (
     <div className="flex flex-col h-full p-6 space-y-6">
@@ -26,8 +28,19 @@ const ImageGenerator: React.FC = () => {
                 <textarea 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    className="w-full h-32 bg-neutral-900 border border-neutral-800 text-neutral-200 p-3 rounded font-mono text-sm focus:border-purple-500 focus:outline-none resize-none"
+                    placeholder="Describe the room, mood, and materials..."
+                    aria-invalid={isPromptEmpty}
+                    aria-describedby="visualizer-prompt-help"
+                    className={`w-full h-32 bg-neutral-900 border text-neutral-200 p-3 rounded font-mono text-sm focus:border-purple-500 focus:outline-none resize-none ${
+                      isPromptEmpty ? 'border-red-900/70' : 'border-neutral-800'
+                    }`}
                 />
+                <div
+                    id="visualizer-prompt-help"
+                    className={`text-[10px] font-mono uppercase ${isPromptEmpty ? 'text-red-300' : 'text-neutral-500'}`}
+                >
+                    {isPromptEmpty ? 'Prompt required to initiate render.' : `${trimmedPromptLength} characters logged.`}
+                </div>
             </div>
 
             <div className="space-y-2">
@@ -47,8 +60,8 @@ const ImageGenerator: React.FC = () => {
 
             <button
                 onClick={handleGenerate}
-                disabled={isLoading}
-                className="w-full py-3 bg-white text-black font-mono font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                disabled={isLoading || isPromptEmpty}
+                className="w-full py-3 bg-white text-black font-mono font-bold flex items-center justify-center gap-2 hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
             >
                 {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <Zap className="w-4 h-4" />}
                 INITIATE RENDER

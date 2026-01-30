@@ -3,8 +3,18 @@ import { Chapter } from '../types';
 import { Play, Pause, RefreshCw, Loader2, Download } from 'lucide-react';
 import { useAudiobookPlayer } from '../hooks/useAudiobookPlayer';
 import { decodeBase64 } from '../utils/audio';
-const AudiobookPlayer: React.FC<Props> = ({ chapter }) => {
+import { countWords } from '../utils/text';
+
+type Props = {
+  chapter: Chapter;
+  totalWordCount: number;
+  goalWordCount: number;
+};
+const AudiobookPlayer: React.FC<Props> = ({ chapter, totalWordCount, goalWordCount }) => {
   const { isPlaying, isLoading, audioBuffer, audioBase64, error, handleGenerate, togglePlay } = useAudiobookPlayer(chapter);
+  const chapterWordCount = countWords(chapter.content);
+  const progressPercent = Math.min(100, Math.round((totalWordCount / goalWordCount) * 100));
+  const remainingWords = Math.max(0, goalWordCount - totalWordCount);
 
   const handleDownload = () => {
     if (!audioBase64) return;
@@ -24,6 +34,18 @@ const AudiobookPlayer: React.FC<Props> = ({ chapter }) => {
         <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-mono text-emerald-500 uppercase tracking-widest">System Log // {chapter.date}</span>
             <span className="text-xs font-mono text-neutral-500">{chapter.id.toUpperCase()}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono uppercase text-neutral-500">
+          <span>Chapter words: {chapterWordCount.toLocaleString()}</span>
+          <span>Total: {totalWordCount.toLocaleString()} / {goalWordCount.toLocaleString()}</span>
+          <span>Progress: {progressPercent}%</span>
+          <span>Remaining: {remainingWords.toLocaleString()}</span>
+        </div>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full border border-neutral-800 bg-neutral-950">
+          <div
+            className="h-full bg-emerald-500/80 transition-all"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
         <h2 className="text-2xl font-bold text-white mb-4 font-mono">{chapter.title}</h2>
         

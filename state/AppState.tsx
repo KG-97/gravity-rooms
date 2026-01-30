@@ -7,6 +7,8 @@ interface AppState {
   chatHistory: ChatMessage[];
 }
 
+const MAX_CHAT_HISTORY = 120;
+
 type Action =
   | { type: 'setView'; view: ViewMode }
   | { type: 'setChapterId'; chapterId: string }
@@ -25,7 +27,10 @@ const reducer = (state: AppState, action: Action): AppState => {
     case 'setChatHistory':
       return { ...state, chatHistory: action.history };
     case 'appendChat':
-      return { ...state, chatHistory: [...state.chatHistory, action.message] };
+      return {
+        ...state,
+        chatHistory: [...state.chatHistory, action.message].slice(-MAX_CHAT_HISTORY),
+      };
     default:
       return state;
   }

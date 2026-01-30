@@ -39,11 +39,20 @@ export const useImageGenerator = () => {
     window.localStorage.setItem(STORAGE_KEYS.size, size);
   }, [size]);
 
+  useEffect(() => {
+    setError(null);
+  }, [prompt, size]);
+
   const handleGenerate = useCallback(async () => {
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) {
+      setError('Prompt required. Describe the environment to render.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const url = await generateImage(prompt, size);
+      const url = await generateImage(trimmedPrompt, size);
       setImageUrl(url);
     } catch (err) {
       console.error(err);

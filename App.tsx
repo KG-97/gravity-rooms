@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ViewMode } from './types';
 import { MANUSCRIPT } from './data/manuscript';
 import AudiobookPlayer from './components/AudiobookPlayer';
@@ -8,6 +8,7 @@ import LiveInterface from './components/LiveInterface';
 import { Book, Image, MessageSquare, Menu, Radio } from 'lucide-react';
 import { AppStateProvider, useAppDispatch, useAppState } from './state/AppState';
 import ErrorBoundary from './components/ErrorBoundary';
+import { countWords } from './utils/text';
 
 const STORAGE_KEYS = {
   view: 'gravity:view',
@@ -47,8 +48,13 @@ const AppShell: React.FC = () => {
   const { view, currentChapterId, chatHistory } = useAppState();
   const dispatch = useAppDispatch();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const goalWordCount = 100000;
 
   const currentChapter = MANUSCRIPT.find(c => c.id === currentChapterId) || MANUSCRIPT[0];
+  const totalWordCount = useMemo(
+    () => MANUSCRIPT.reduce((total, chapter) => total + countWords(chapter.content), 0),
+    []
+  );
 
   const handleSetView = (nextView: ViewMode) => {
     dispatch({ type: 'setView', view: nextView });
@@ -161,7 +167,13 @@ const AppShell: React.FC = () => {
             
             <div className="relative z-10 h-full w-full max-w-7xl mx-auto flex gap-6">
                 <div className={`flex-1 h-full transition-all duration-500 ${view === ViewMode.SYSTEM_LOG ? 'hidden md:block' : 'block'}`}>
-                    {view === ViewMode.AUDIOBOOK && <AudiobookPlayer chapter={currentChapter} />}
+                    {view === ViewMode.AUDIOBOOK && (
+                      <AudiobookPlayer
+                        chapter={currentChapter}
+                        totalWordCount={totalWordCount}
+                        goalWordCount={goalWordCount}
+                      />
+                    )}
                     {view === ViewMode.VISUALIZER && <ImageGenerator />}
                     {view === ViewMode.LIVE_INTERROGATION && <LiveInterface />}
                     {view === ViewMode.SYSTEM_LOG && (

@@ -104,6 +104,7 @@ export const chatWithSystem = async (message: string, history: { role: 'user' | 
         })),
         config: {
             thinkingConfig: { thinkingBudget: 32768 },
+            maxOutputTokens: 32768,
             systemInstruction: `You are the SYSTEM LOG for the Gates Case File (2024-2025). 
             You speak in the voice of Kaleb Gates: dark, witty, hyper-analytical, obsessed with systems, entropy, and documentation.
             You view the world through the lens of neuroscience, physiology, and legal procedure.
